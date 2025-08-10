@@ -1,91 +1,116 @@
 import httpStatus from "http-status";
 import AppError from "../../utils/AppError";
-import { User } from "./user.model";
+import { PendingUser, User } from "./user.model";
 import bcrypt from "bcrypt";
 import { TUser } from "./user.interface";
-import redisClient from "../../utils/radis";
+
 import generateOTP from "../../utils/generateOtp";
 import sendEmail from "../../utils/email";
-import { Service } from "../service/service.model";
-import { Review } from "../review/review.model";
+import { emailBody } from "../../middleware/EmailBody";
+import { jwtHelpers } from "../../utils/jwtHelpers";
+import config from "../../config";
 
-const createUser = async (payload: TUser) => {
-  const { email, password } = payload;
-
-  const isExist = await User.findOne({ email });
-
-  if (isExist) {
-    throw new AppError(httpStatus.NOT_FOUND, `Email already exist`);
+const createPendingUserIntoDB = async (payload: TUser) => {
+  const existingUser = await User.findOne({
+    where: { email: payload.email },
+  });
+  if (existingUser) {
+    throw new AppError(409, "Email already exists!");
   }
 
-  const hashedPassword = bcrypt.hashSync(password, 10);
-
-  const pendingUserData = {
-    email: payload.email,
-    fullName: payload.fullName,
-    phoneNumber: payload.phoneNumber,
-    password: hashedPassword,
-    role: payload.role,
-  };
-
-  await redisClient.set(
-    `pendingUser:${payload.email}`,
-    JSON.stringify(pendingUserData),
-    { EX: 300 }
-  );
-
+  const hashedPassword = bcrypt.hashSync(payload.password, 10);
   const otp = generateOTP();
-  const subject = "Account verification OTP";
-  const html = `
-    <div style="font-family: Arial, sans-serif; color: #333;">
-      <h2>Password Reset Request</h2>
-      <p>Hi <b>${payload.fullName}</b>,</p>
-      <p>Your OTP for password reset is:</p>
-      <h1 style="color: #007BFF;">${otp}</h1>
-      <p>This OTP is valid for <b>5 minutes</b>. If you did not request this, please ignore this email.</p>
-      <p>Thanks, <br>The Support Team</p>
-    </div>
-  `;
+  const OTP_EXPIRATION_TIME = 5 * 60 * 1000;
+  const expiresAt = Date.now() + OTP_EXPIRATION_TIME;
+  const subject = "Your Account Verification OTP";
+  const html = emailBody(payload.fullName, otp);
 
   await sendEmail(payload.email, subject, html);
-  await redisClient.set(`otp:${payload.email}`, otp, { EX: 300 });
+  await PendingUser.findOneAndUpdate(
+    { email: payload.email },
+    {
+      $set: {
+        ...payload,
+        password: hashedPassword,
+        otp,
+        expiresAt: new Date(expiresAt),
+      },
+    },
+    { upsert: true, new: true }
+  );
+  return otp
+};
+const resendVerifyOTP = async (email: string) => {
+  const existingUser = await PendingUser.findOne({ email });
+
+  if (!existingUser) {
+    throw new AppError(409, "User not found!");
+  }
+
+  const otp = generateOTP();
+  const OTP_EXPIRATION_TIME = 5 * 60 * 1000;
+  const expiresAt = new Date(Date.now() + OTP_EXPIRATION_TIME);
+
+  const subject = "Your Account Verification OTP";
+  const html = emailBody(existingUser.fullName, otp);
+
+  await sendEmail(email, subject, html);
+  await PendingUser.updateOne({ email }, { $set: { otp, expiresAt } });
 
   return otp;
 };
 
-const signupVerification = async (payload: { email: string; otp: string }) => {
-  const { email, otp } = payload;
-
-  const savedOtp = await redisClient.get(`otp:${email}`);
-  if (!savedOtp) {
-    throw new AppError(400, "Invalid or expired OTP.");
+const createUserIntoDB = async (email: string, otp: string) => {
+  const existingUser = await User.findOne({ email });
+  if (existingUser) {
+    throw new AppError(409, "User already exists!");
   }
 
-  if (otp !== savedOtp) {
+  const userPending = await PendingUser.findOne({ email });
+  if (!userPending) {
+    throw new AppError(409, "User doesn't exist!");
+  }
+
+  const { expiresAt, fullName } = userPending;
+
+  if (otp !== userPending.otp) {
     throw new AppError(401, "Invalid OTP.");
   }
 
-  const pendingUserStr = await redisClient.get(`pendingUser:${email}`);
-  if (!pendingUserStr) {
-    throw new AppError(404, "No pending user found. Please sign up again.");
+  if (Date.now() > expiresAt.getTime()) {
+    await PendingUser.deleteOne({ email: userPending.email });
+    throw new AppError(410, "OTP has expired");
   }
-  const pendingUser = JSON.parse(pendingUserStr);
 
-  await User.create({
-    email: pendingUser.email,
-    fullName: pendingUser.fullName,
-    password: pendingUser.password,
-    phoneNumber: pendingUser.phoneNumber,
-    role: pendingUser.role,
+  await PendingUser.deleteOne({ email });
+
+  const user = await User.create({
+    email: email,
+    password: userPending.password,
+    fullName,
+    phoneNumber: userPending.phoneNumber,
+    role: userPending.role,  
   });
 
-  await Promise.all([
-    redisClient.del(`otp:${email}`),
-    redisClient.del(`pendingUser:${email}`),
-  ]);
+  const accessToken = jwtHelpers.generateToken(
+    {
+      id: user._id,
+      email: user.email,
+      role: user.role,
+    },
+    config.jwt.jwt_secret as string,
+    config.jwt.expires_in as string
+  );
+  const userObj = user.toObject();
 
-  return;
+  const { password, ...sanitizedUser } = userObj;
+
+  return {
+    accessToken,
+    userInfo: sanitizedUser,
+  };
 };
+
 
 const userInfo = async (userId: string) => {
   const user = await User.findById({
@@ -95,21 +120,15 @@ const userInfo = async (userId: string) => {
     throw new AppError(404, "User not found");
   }
 
-  const services = await Service.find({ user: userId }).select("_id");
-  const serviceIds = services.map((s) => s._id);
-
-  const reviews = await Review.find({ service: { $in: serviceIds } })
-    .populate("user", "_id fullName profileImage")
-    .sort({ createdAt: -1 });
-
   return {
     ...user.toObject(),
-    reviews,
   };
 };
 
 export const userService = {
-  createUser,
-  signupVerification,
+  createPendingUserIntoDB,
+  createUserIntoDB,
+  
+  resendVerifyOTP,
   userInfo,
 };

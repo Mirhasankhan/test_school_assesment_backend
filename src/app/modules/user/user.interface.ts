@@ -4,13 +4,7 @@ export type TUser = {
   email: string;
   phoneNumber: string;
   password: string;
+  otp: string;
   role: string;
-  profileImage: string;
-  isSetup: boolean;
-  dob: string;
-  gender: string;
-  address: string;
-  about: string;
-  customerId: string;
-  avgRating: number;
+  expiresAt: Date
 };

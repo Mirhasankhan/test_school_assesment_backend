@@ -4,7 +4,7 @@ import sendResponse from "../../utils/sendResponse";
 import { authServices } from "./auth.service";
 
 const loginUser = catchAsync(async (req, res) => {
-  const result = await authServices.loginUser(req.body);
+  const result = await authServices.loginUserIntoDB(req.body);
 
   sendResponse(res, {
     success: true,
@@ -14,10 +14,9 @@ const loginUser = catchAsync(async (req, res) => {
   });
 });
 
-const forgetPassword = catchAsync(async (req, res) => {
+const sendOtp = catchAsync(async (req, res) => {
   const { email } = req.body;
-
-  const result = await authServices.forgetPasswordFromDB(email);
+  const result = await authServices.sendForgotPasswordOtpDB(email);
 
   sendResponse(res, {
     success: true,
@@ -26,34 +25,32 @@ const forgetPassword = catchAsync(async (req, res) => {
     data: result,
   });
 });
-
-const verifyForgotPassword = catchAsync(async (req, res) => {
-  const payload = req.body;
-  const response = await authServices.verifyForgotPassword(payload);
+const verifyOtp = catchAsync(async (req, res) => {
+  const result = await authServices.verifyForgotPasswordOtpCode(req.body);
 
   sendResponse(res, {
-    statusCode: 200,
     success: true,
-    message: "OTP verified successfully.",
-    data: response,
+    statusCode: 200,
+    message: `OTP verified successfully`,
+    data: result,
   });
 });
 
 const resetPassword = catchAsync(async (req, res) => {
   const { newPassword } = req.body;
   const userId = req.user.id;
-  await authServices.resetForgotPassword(newPassword, userId);
+  await authServices.resetPasswordIntoDB(newPassword, userId);
 
   sendResponse(res, {
     success: true,
     statusCode: httpStatus.OK,
-    message: "User password reset successfully",
+    message: "password reset successfully",
   });
 });
 
 const userLocationUpdateInRedis = catchAsync(async (req, res) => {
   const { id } = req.user;
-  await authServices.userLocationUpdateInRedis(id, req.body);
+
   sendResponse(res, {
     statusCode: 200,
     success: true,
@@ -80,23 +77,12 @@ const updateProfileImage = catchAsync(async (req, res) => {
   });
 });
 
-const myProfile = catchAsync(async (req, res) => {
-  const result = await authServices.myProfile(req.user.id);
-  sendResponse(res, {
-    statusCode: 200,
-    success: true,
-    message: "Profile info retrived successfully",
-    data: result,
-  });
-});
-
 export const authController = {
   loginUser,
-  forgetPassword,
+  sendOtp,
+  verifyOtp,
   resetPassword,
-  verifyForgotPassword,
   userLocationUpdateInRedis,
   updateProfile,
   updateProfileImage,
-  myProfile,
 };

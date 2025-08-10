@@ -2,24 +2,36 @@ import catchAsync from "../../utils/catchAsync";
 import sendResponse from "../../utils/sendResponse";
 import { userService } from "./user.service";
 
-const createUser = catchAsync(async (req, res) => {
-  const user = await userService.createUser(req.body);
+const createPendingUser = catchAsync(async (req, res) => {
+  const user = await userService.createPendingUserIntoDB(req.body);
   sendResponse(res, {
     success: true,
-    statusCode: 200,
+    statusCode: 201,
     message: "OTP Send Successfully",
     data: user,
   });
 });
-
-const signupVerification = catchAsync(async (req, res) => {
-  await userService.signupVerification(req.body);
+const resendOtp = catchAsync(async (req, res) => {
+  const user = await userService.resendVerifyOTP(req.body.email);
   sendResponse(res, {
     success: true,
     statusCode: 201,
-    message: "User created successfull",
+    message: "OTP resend Successfully",
+    data: user,
   });
 });
+
+const createUser = catchAsync(async (req, res) => {
+  const {email,otp} =req.body
+  const user = await userService.createUserIntoDB(email,otp);
+  sendResponse(res, {
+    success: true,
+    statusCode: 200,
+    message: "User verified Successfully",
+    data: user,
+  });
+});
+
 
 const userInfo = catchAsync(async (req, res) => {
   const { userId } = req.params;
@@ -33,7 +45,9 @@ const userInfo = catchAsync(async (req, res) => {
 });
 
 export const userController = {
+  createPendingUser,
   createUser,
-  signupVerification,
+  
   userInfo,
+  resendOtp
 };
