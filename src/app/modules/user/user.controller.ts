@@ -46,8 +46,7 @@ const userInfo = catchAsync(async (req, res) => {
 
 export const userController = {
   createPendingUser,
-  createUser,
-  
+  createUser,  
   userInfo,
   resendOtp
 };

@@ -1,14 +1,9 @@
 import bcrypt from "bcrypt";
-import httpStatus from "http-status";
-import jwt from "jsonwebtoken";
 import config from "../../config";
 import AppError from "../../utils/AppError";
-import { TLoginUser } from "./auth.interface";
 import { Otp, User } from "../user/user.model";
 import sendEmail from "../../utils/email";
 import generateOTP from "../../utils/generateOtp";
-import { TUser } from "../user/user.interface";
-import { uploadInSpace } from "../../utils/uploadInSpace";
 import { jwtHelpers } from "../../utils/jwtHelpers";
 import { emailBodyOtp } from "../../middleware/EmailBody";
 
@@ -30,6 +25,7 @@ const loginUserIntoDB = async (payload: any) => {
       email: user.email,
       role: user.role,
       fullName: user.fullName,
+      currentStep: user.currentStep
     },
     config.jwt.jwt_secret as string,
     config.jwt.expires_in as string
@@ -121,43 +117,9 @@ const resetPasswordIntoDB = async (newPassword: string, userId: string) => {
   return;
 };
 
-const userLocationUpdateInRedis = async (
-  userId: string,
-  userLocation: { longitude: number; latitude: number }
-) => {
-  const redisGeoKey = "userLocations";
-
-  return;
-};
-
-const updateProfile = async (userId: string, payload: TUser) => {
-  await User.findByIdAndUpdate(userId, payload, { new: true });
-  return;
-};
-
-const updateProfileImage = async (
-  userId: string,
-  file: Express.Multer.File
-) => {
-  if (file === undefined) {
-    throw new AppError(400, "Please select image");
-  }
-  const profileImage = await uploadInSpace(file, "users/photos");
-  await User.findByIdAndUpdate(
-    {
-      _id: userId,
-    },
-    { profileImage }
-  );
-  return;
-};
-
 export const authServices = {
   loginUserIntoDB,
   sendForgotPasswordOtpDB,
   verifyForgotPasswordOtpCode,
   resetPasswordIntoDB,
-  userLocationUpdateInRedis,
-  updateProfile,
-  updateProfileImage,
 };

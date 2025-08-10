@@ -11,9 +11,7 @@ import { jwtHelpers } from "../../utils/jwtHelpers";
 import config from "../../config";
 
 const createPendingUserIntoDB = async (payload: TUser) => {
-  const existingUser = await User.findOne({
-    where: { email: payload.email },
-  });
+  const existingUser = await User.findOne({ email: payload.email });
   if (existingUser) {
     throw new AppError(409, "Email already exists!");
   }

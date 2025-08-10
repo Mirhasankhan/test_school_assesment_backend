@@ -48,41 +48,9 @@ const resetPassword = catchAsync(async (req, res) => {
   });
 });
 
-const userLocationUpdateInRedis = catchAsync(async (req, res) => {
-  const { id } = req.user;
-
-  sendResponse(res, {
-    statusCode: 200,
-    success: true,
-    message: "Your location updated successfully",
-  });
-});
-
-const updateProfile = catchAsync(async (req, res) => {
-  await authServices.updateProfile(req.user.id, req.body);
-  sendResponse(res, {
-    statusCode: 200,
-    success: true,
-    message: "Profile update successfully",
-  });
-});
-
-const updateProfileImage = catchAsync(async (req, res) => {
-  const file = req.file as Express.Multer.File;
-  await authServices.updateProfileImage(req.user.id, file);
-  sendResponse(res, {
-    statusCode: 200,
-    success: true,
-    message: "Profile update successfully",
-  });
-});
-
 export const authController = {
   loginUser,
   sendOtp,
   verifyOtp,
   resetPassword,
-  userLocationUpdateInRedis,
-  updateProfile,
-  updateProfileImage,
 };
