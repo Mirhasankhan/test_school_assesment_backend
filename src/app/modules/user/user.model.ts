@@ -9,7 +9,16 @@ export const role = {
 const userSchema = new Schema<TUser>(
   {
     fullName: { type: String, required: [true, "Fullname is required"] },
-    email: { type: String, required: [true, "Email is required"] },
+    email: {
+      type: String,
+      required: [true, "Email is required"],
+      unique: true,   
+      trim: true,
+      match: [
+        /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+        "Please fill a valid email address",
+      ],
+    },
     phoneNumber: { type: String, required: [true, "Phone number is required"] },
     password: { type: String, required: [true, "Password is required"] },
     role: {
@@ -24,7 +33,7 @@ const userSchema = new Schema<TUser>(
     currentLevel: {
       type: String,
       default: "None",
-      enum: ["None","A1", "A2", "B1", "B2", "C1", "C2"],
+      enum: ["None", "A1", "A2", "B1", "B2", "C1", "C2"],
     },
     currentStep: {
       type: Number,
