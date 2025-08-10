@@ -36,7 +36,7 @@ const createPendingUserIntoDB = async (payload: TUser) => {
     },
     { upsert: true, new: true }
   );
-  return otp
+  return otp;
 };
 const resendVerifyOTP = async (email: string) => {
   const existingUser = await PendingUser.findOne({ email });
@@ -87,7 +87,7 @@ const createUserIntoDB = async (email: string, otp: string) => {
     password: userPending.password,
     fullName,
     phoneNumber: userPending.phoneNumber,
-    role: userPending.role,  
+    role: userPending.role,
   });
 
   const accessToken = jwtHelpers.generateToken(
@@ -109,24 +109,25 @@ const createUserIntoDB = async (email: string, otp: string) => {
   };
 };
 
-
-const userInfo = async (userId: string) => {
+const getProfileDetailsFromDb = async (userId: string) => {
   const user = await User.findById({
     _id: userId,
-  }).select("_id fullName profileImage about avgRating");
+  });
   if (!user) {
     throw new AppError(404, "User not found");
   }
+  const userObj = user.toObject();
+  const { password, ...sanitizedUser } = userObj;
 
   return {
-    ...user.toObject(),
+    sanitizedUser,
   };
 };
 
 export const userService = {
   createPendingUserIntoDB,
   createUserIntoDB,
-  
+
   resendVerifyOTP,
-  userInfo,
+  getProfileDetailsFromDb,
 };

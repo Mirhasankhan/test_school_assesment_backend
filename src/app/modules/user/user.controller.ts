@@ -34,8 +34,8 @@ const createUser = catchAsync(async (req, res) => {
 
 
 const userInfo = catchAsync(async (req, res) => {
-  const { userId } = req.params;
-  const user = await userService.userInfo(userId);
+  
+  const user = await userService.getProfileDetailsFromDb(req.user.id);
   sendResponse(res, {
     success: true,
     statusCode: 201,
