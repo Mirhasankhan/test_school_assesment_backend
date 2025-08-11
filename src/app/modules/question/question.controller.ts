@@ -19,7 +19,7 @@ const getQuestions = catchAsync(async (req, res) => {
   sendResponse(res, {
     success: true,
     statusCode: 200,
-    message: "Questions retrieved Successfully",
+    message: "Questions retrived Successfully",
     data: questions,
   });
 });
