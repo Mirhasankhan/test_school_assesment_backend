@@ -14,6 +14,7 @@ const createQuestion = catchAsync(async (req, res) => {
 });
 
 const getQuestions = catchAsync(async (req, res) => {
+
   const questions = await questionService.getQuestionsFromDB(req.user.currentStep);
   sendResponse(res, {
     success: true,

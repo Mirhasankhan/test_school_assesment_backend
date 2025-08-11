@@ -77,7 +77,7 @@ const getQuestionsFromDB = async (levelNumber: 1 | 2 | 3) => {
   return questions;
 };
 
-const evaluateQuiz = async (userAnswers: any, userId: string) => { 
+const evaluateQuiz = async (userAnswers: any, userId: string) => {
   const currentUser = await User.findById(userId).lean();
   if (!currentUser) throw new Error("User not found");
 
@@ -95,7 +95,7 @@ const evaluateQuiz = async (userAnswers: any, userId: string) => {
 
   for (const answer of userAnswers) {
     const question = questionMap.get(answer.questionId);
-    if (!question) continue; 
+    if (!question) continue;
 
     const correctOptionId = question.correctOptionId.toString();
     const isCorrect = correctOptionId === answer.selectedOptionId;
@@ -117,14 +117,15 @@ const evaluateQuiz = async (userAnswers: any, userId: string) => {
   }
 
   const totalQuestions = userAnswers.length;
-  const percentage = totalQuestions > 0 ? (correctCount / totalQuestions) * 100 : 0;
+  const percentage =
+    totalQuestions > 0 ? (correctCount / totalQuestions) * 100 : 0;
 
   let updatedLevel: string | "blocked" = "";
   const updateData: any = {};
- 
+
   if (currentUser.currentStep === 1) {
     if (percentage < 25) {
-      updateData.isBlocked = true;  
+      updateData.isBlocked = true;
       updatedLevel = "blocked";
     } else if (percentage < 50) {
       updateData.currentLevel = "A1";
@@ -140,11 +141,10 @@ const evaluateQuiz = async (userAnswers: any, userId: string) => {
       updateData.currentLevel = "A2";
       updatedLevel = "A2";
       updateData.isBlocked = false;
-      updateData.currentStep = 2; 
+      updateData.currentStep = 2;
     }
-  }
-  else if (currentUser.currentStep === 2) {
-    if (percentage < 25) {   
+  } else if (currentUser.currentStep === 2) {
+    if (percentage < 25) {
       updateData.currentLevel = "A2";
       updatedLevel = "A2";
       updateData.isBlocked = false;
@@ -163,11 +163,10 @@ const evaluateQuiz = async (userAnswers: any, userId: string) => {
       updateData.currentLevel = "B2";
       updatedLevel = "B2";
       updateData.isBlocked = false;
-      updateData.currentStep = 3;  
+      updateData.currentStep = 3;
     }
-  }
-  else if (currentUser.currentStep === 3) {
-    if (percentage < 25) {     
+  } else if (currentUser.currentStep === 3) {
+    if (percentage < 25) {
       updateData.currentLevel = "B2";
       updatedLevel = "B2";
       updateData.isBlocked = false;
@@ -185,16 +184,14 @@ const evaluateQuiz = async (userAnswers: any, userId: string) => {
     }
   }
 
-  // Save changes to user
   await User.updateOne({ _id: userId }, { $set: updateData });
 
-  // Create updated token
   const updatedToken = jwtHelpers.generateToken(
     {
       id: userId,
       email: currentUser.email,
       role: currentUser.role,
-      currentLevel: updateData.currentLevel, // include new level in token
+      currentLevel: updateData.currentLevel,
       currentStep: updateData.currentStep,
       isBlocked: updateData.isBlocked,
     },
@@ -211,8 +208,6 @@ const evaluateQuiz = async (userAnswers: any, userId: string) => {
     accessToken: updatedToken,
   };
 };
-
-
 
 export const questionService = {
   createQuestionIntoDB,
